@@ -1,0 +1,12 @@
+title: WiFi CSI Human Pose Sensing
+description: >-
+  WiFi Channel State Information (CSI) capture and human pose sensing on
+  Raspberry Pi 4, using nexmon_csi for firmware-level CSI extraction from
+  ambient WiFi traffic — explored as an alternative to camera-based pose
+  detection.
+remote_theme: pages-themes/minimal
+plugins:
+  - jekyll-remote-theme
+
+# GitHub metadata (used by some themes for the repo link / footer)
+repository: ananyasahani/rpi-csi-pose-sensing
