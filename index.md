@@ -54,7 +54,15 @@ See [Installation](installation.md) for the full step-by-step setup.
 Actively in progress — monitor-mode and firmware patching confirmed working;
 CSI capture and storage pipeline is the current focus.
 
+## Team
+
+This project is being built by:
+
+- **Ananya Sahani**
+- **Sandeep Balaji**
+- **Hemesh Kukreja**
+
 ## Publications
 
 _None yet — this section will be updated if the project results in a paper
-or writeup._
+or writeup
