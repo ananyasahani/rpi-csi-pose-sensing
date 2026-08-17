@@ -1,6 +1,11 @@
 # Nexmon CSI — Installation Guide
 
-> Tested on **Raspberry Pi 4 Model B** and **Raspberry Pi 5** running  
+> The nexmon_csi installation method used in this project (the `Makefile.rpi`
+build, tested on **Raspberry Pi 4 Model B** and **Raspberry Pi 5**) is based
+on the solution shared by [jlinktu](https://github.com/jlinktu) in this
+nexmon_csi discussion thread:
+
+[nexmon_csi Discussion #395](https://github.com/seemoo-lab/nexmon_csi/discussions/395)  
 > Raspberry Pi OS Lite 64-bit (Trixie, November 2025).  
 > This guide combines the firmware downgrade step with the full Nexmon CSI build.
 
