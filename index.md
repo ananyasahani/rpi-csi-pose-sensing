@@ -4,7 +4,7 @@ title: WiFi CSI Human Pose Sensing
 
 # WiFi CSI Human Pose Sensing
 
-[Overview](#overview) | [Installation](installation.md) | [Capture Pipeline](#capture-pipeline) | [Fundametals](csi_preprocessing.md) [GitHub](https://github.com/ananyasahani/rpi-csi-pose-sensing)
+[Overview](#overview) | [Installation](installation.md) | [Capture Pipeline](#capture-pipeline) | [Fundametals](csi_preprocessing.md) | [GitHub](https://github.com/ananyasahani/rpi-csi-pose-sensing)
 
 ## Overview
 

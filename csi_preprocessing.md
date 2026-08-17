@@ -18,8 +18,8 @@ used in this project.
 ## What is CSI?
 
 Channel State Information describes how a wireless signal is altered as it
-travels from transmitter to receiver — the combined effect of scattering,
-fading, and power decay caused by multipath propagation. Unlike RSSI, which
+travels from transmitter to receiver after it scatters, refracts and reflects,
+fades, and power decay caused by multipath propagation. Unlike RSSI, which
 gives a single scalar per packet, CSI is a fine-grained, per-subcarrier
 measurement of the wireless channel, making it useful for applications like
 localization, motion/gesture sensing, and human activity recognition.
