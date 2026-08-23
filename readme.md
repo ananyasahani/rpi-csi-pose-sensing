@@ -23,4 +23,4 @@ for full setup steps.
 ## Status
 
 Actively in progress — monitor-mode and firmware patching confirmed working;
-CSI capture and storage pipeline is the current focus.
+CSI capture and storage pipeline is the current focus.after the data collections is done, next phase is to design the pipeline for data processing since LSTM are wide accepted model for time series data i am going to use it for now 
