@@ -1,104 +1,98 @@
 ---
 layout: page
-title: "CSI Capture: Firmware Patching & Hardware Setup Journey"
+title: "Hardware Setup — Firmware Patching Journey"
 permalink: /hardware-setup/
 ---
 
-# CSI Capture: Firmware Patching & Hardware Setup Journey
+# Hardware Setup — Firmware Patching Journey
 
-## Overview
+> Getting `nexmon_csi` running reliably meant working through four different hardware/network arrangements before landing on a stable one. Each iteration failed for a different reason — usually related to how monitor mode interacts with the Pi's network interface, or how the host machine handles power to a connected Pi.
 
-This document outlines the iterative process of establishing a Channel State Information (CSI) capture environment using the `nexmon_csi` repository. It details the progression through four distinct hardware setups and the software dependency challenges resolved along the way to reach a stable configuration.
-
----
-
-## Hardware & Network Iterations
-
-### Setup 1: Mobile Hotspot Interface (Wireless SSH)
-
-| | |
-|---|---|
-| **Configuration** | All hosts communicated wirelessly via SSH over a mobile hotspot network. |
-| **OS** | Trixie OS flashed to the SD card. |
-| **Process** | Installed `nexmon_csi` and compiled the setup. |
-
-**Failure Point:** Activating monitor mode inherently modifies the Wi-Fi chip's firmware. This causes all standard communication over `wlan0` to drop, severing the SSH connection. A physical connection is required to communicate with the Raspberry Pi once the firmware is patched.
-
-### Setup 2: Ethernet Interface
-
-| | |
-|---|---|
-| **Configuration** | Raspberry Pi connected directly to a laptop via a USB-to-Ethernet adapter to gain network access outside of `wlan0`. |
-| **Process** | Repeated the firmware patching process from Setup 1. |
-
-**Failure Point:** The connection proved highly flaky. Laptop ports strictly manage power output, causing the Ethernet connection to drop during resource-intensive tasks (like cloning large repositories).
-
-> **Note:** While `tmux` sessions can keep a session alive through these drops, a more stable hardware configuration was ultimately necessary.
-
-### Setup 3: Router Interface (Standalone)
-
-| | |
-|---|---|
-| **Configuration** | The Raspberry Pi operates as a fully independent system with its own dedicated monitor and keyboard, bypassing laptop-to-Pi communication entirely. |
-| **Process** | The Raspberry Pi acts purely as the CSI data-capturing component (monitoring the router), while the laptop continuously pings UDP packets through the network. |
-| **Result** | Solved the connectivity drops by isolating the capture device from the laptop's power-management limitations. |
-
-### Setup 4: Final Distributed Setup
-
-| Role | Device | Function |
-|---|---|---|
-| Transmitter | Raspberry Pi 3 | Dedicated to continuously pinging UDP packets through the network. |
-| Receiver / Capturer | Raspberry Pi 4 | Dedicated solely to capturing the resulting CSI data. |
-
-Two Raspberry Pis operating in tandem on the network — this is the configuration that stuck.
+This page walks through that progression, then covers the OS/kernel/firmware dependency issues that had to be resolved alongside it.
 
 ---
 
-## Software & Dependency Troubleshooting
+## Why this took multiple attempts
 
-The most significant hurdle across all setups was aligning the operating system, kernel version, and Wi-Fi firmware to meet the strict dependencies of `nexmon_csi`.
+Activating monitor mode via `nexmon_csi` patches the Wi-Fi chip's firmware directly. The moment that happens, standard communication over `wlan0` drops — so whatever you were using to talk to the Pi (SSH over Wi-Fi, in particular) goes down with it. Every setup below is really just a different answer to the question: **once `wlan0` is gone, how do you still talk to the Pi, and how does the Pi still get network access for capture?**
 
-### Hardware Constraints (per Nexmon Docs)
+---
 
-- **Raspberry Pi 4:** Chip `bcm43455c0` — requires a specific kernel/firmware combination (4 available patches).
-- **Raspberry Pi 3:** Chip `bcm43430a1` — requires a specific kernel/firmware combination (2 available patches).
+## Setup 1: Mobile Hotspot Interface (Wireless SSH)
 
-### The Update Loop Issue
+All hosts communicated wirelessly over a mobile hotspot, with Trixie OS flashed to the SD card. `nexmon_csi` was installed and compiled as-is.
 
-When flashing compatible older Bullseye images and installing specific firmware versions, running a standard `apt update` to fetch required libraries would automatically upgrade the kernel and firmware — breaking the `nexmon_csi` patch.
+**Failure point:** as expected, patching the firmware to enable monitor mode killed the `wlan0` link — and with it, the SSH session. A physical connection turned out to be non-negotiable once the firmware is patched.
 
-**Solution:** Prevent these specific upgrades by holding the relevant packages, locking the system at compatible versions while still allowing other necessary libraries to update:
+## Setup 2: Ethernet Interface
+
+To get around the `wlan0` problem, the Pi was connected directly to a laptop via a USB-to-Ethernet adapter, giving it a network path outside of Wi-Fi entirely.
+
+**Failure point:** the connection was flaky rather than broken. Laptop USB ports manage power output tightly, and the Ethernet link would drop during anything resource-intensive — cloning large repositories, for example.
+
+> `tmux` sessions can keep work alive through these drops, but that's a workaround, not a fix. A more stable hardware configuration was still needed.
+
+## Setup 3: Router Interface (Standalone)
+
+This setup removed the laptop from the Pi's network path altogether. The Pi runs independently with its own monitor and keyboard, monitoring the router directly, while the laptop's only job is to continuously send UDP packets across the network for the Pi to capture.
+
+**Result:** this solved the connectivity drops, because the capture device was no longer dependent on the laptop's power-management behavior at all.
+
+## Setup 4: Final Distributed Setup
+
+The working configuration splits the two roles across two separate Raspberry Pis:
+
+- **Raspberry Pi 3 (transmitter):** dedicated to continuously pinging UDP packets through the network.
+- **Raspberry Pi 4 (receiver/capturer):** dedicated solely to capturing the resulting CSI data.
+
+Neither device depends on a laptop's network stack, which is what made this the setup that finally stuck.
+
+---
+
+## Software & dependency troubleshooting
+
+Even with the hardware settled, the bigger and more persistent hurdle was aligning OS, kernel, and firmware versions to what `nexmon_csi` actually supports.
+
+**Hardware constraints, per the Nexmon docs:**
+
+- **Raspberry Pi 4** — chip `bcm43455c0`, with 4 available firmware patches, each tied to a specific kernel.
+- **Raspberry Pi 3** — chip `bcm43430a1`, with 2 available firmware patches, each tied to a specific kernel.
+
+### The update loop issue
+
+Flashing an older, compatible Bullseye image and installing the matching firmware version solves the problem — until you run a routine `apt update` to pull in other required libraries. That update quietly pulls in a newer kernel and firmware, silently breaking the `nexmon_csi` patch.
+
+The fix is to hold the Pi-specific packages so the rest of the system can still update normally:
 
 ```bash
 sudo apt-mark hold raspberrypi-kernel raspberrypi-kernel-headers raspberrypi-bootloader
 ```
 
-### Legacy Repository Challenges
+### Legacy repository challenges
 
-For significantly older images, standard mirrors no longer exist due to security deprecations.
-
-**Solution:** Manually edit `/etc/apt/sources.list` and `/etc/apt/sources.list.d/raspi.list` to point to Debian archive/legacy repositories so library installations can proceed. (Replace the example mirror below with the actual legacy/archive mirror appropriate for your OS release.)
+Some of the older images needed are old enough that their standard package mirrors have since been deprecated for security reasons. The fix is to manually point `/etc/apt/sources.list` and `/etc/apt/sources.list.d/raspi.list` at an archive/legacy mirror so library installs can still go through:
 
 ```bash
 sudo nano /etc/apt/sources.list
 sudo nano /etc/apt/sources.list.d/raspi.list
-# Point entries to the relevant archive/legacy mirror before running apt update
+# Update the entries to the appropriate archive/legacy mirror for your OS release, then:
+sudo apt update
 ```
 
-### Kernel & Firmware Mismatches
+### Kernel & firmware mismatches
 
-| Attempt | Approach | Outcome |
+Two other approaches were tried and ruled out before landing on the final configuration:
+
+| Attempt | Approach | Why it failed |
 |---|---|---|
-| 1 | Ran an older kernel designed for the Pi 3 on the Pi 4 | **Failed** — the newer architecture requirements on the Pi 4 were not met. |
-| 2 | Downgraded firmware on the Pi 3 to meet Nexmon requirements | **Failed** — the older firmware no longer met current network security standards, causing a total loss of network access. |
+| 1 | Ran an older kernel built for the Pi 3 on a Pi 4 | The Pi 4's newer architecture requirements weren't met. |
+| 2 | Downgraded Pi 3 firmware to meet Nexmon's requirements | The older firmware no longer met current network security standards, causing total loss of network access. |
 
 ---
 
-## Reference Tables
+## Reference: default OS image versions
 
-### Default OS Image Versions
-
-Default kernel and firmware versions found in standard older Raspberry Pi OS images, prior to any modification:
+Kernel and firmware versions shipped by default in the older Raspberry Pi OS images used during testing, before any modification:
 
 | OS Image | Firmware Version | Kernel Version |
 |---|---|---|
@@ -108,42 +102,42 @@ Default kernel and firmware versions found in standard older Raspberry Pi OS ima
 | `2021-01-11-raspios-buster-armhf-lite` | 7.45.98.94 | 5.4.83-v7 |
 | `2021-03-04-raspios-buster-armhf-lite` | 7.45.98.94 | 5.10.17-v7+ |
 
-### Official Nexmon GitHub Specifications
+## Reference: Nexmon firmware patch specifications
 
-Strict hardware, firmware, and kernel requirements dictated by the `nexmon_csi` repository.
+Straight from the `nexmon_csi` repository — the strict hardware/firmware/kernel combinations it supports.
 
-**Raspberry Pi 3 (Chip: `bcm43430a1`)**
+**Raspberry Pi 3 (chip `bcm43430a1`)**
 
-| Wi-Fi Chip | Firmware Patch Version | Supported Hardware | OS / Target Kernel |
-|---|---|---|---|
-| `bcm43430a1` | `7_45_41_26` | Raspberry Pi 3 and Zero W | Raspbian 8 |
-| `bcm43430a1` | `7_45_41_46` | Raspberry Pi 3 and Zero W | Raspbian Stretch |
+| Firmware Patch Version | Supported Hardware | OS / Target Kernel |
+|---|---|---|
+| `7_45_41_26` | Raspberry Pi 3 and Zero W | Raspbian 8 |
+| `7_45_41_46` | Raspberry Pi 3 and Zero W | Raspbian Stretch |
 
-**Raspberry Pi 4 (Chip: `bcm43455c0`)**
+**Raspberry Pi 4 (chip `bcm43455c0`)**
 
-| Wi-Fi Chip | Firmware Patch Version | Supported Hardware | OS / Target Kernel |
-|---|---|---|---|
-| `bcm43455c0` | `7_45_154` | Raspberry Pi B3+/B4 | Raspbian Kernel 4.9/14/19 |
-| `bcm43455c0` | `7_45_189` | Raspberry Pi B3+/B4 | Raspbian Kernel 4.14/19, 5.4 |
-| `bcm43455c0` | `7_45_206` | Raspberry Pi B3+/B4 | Raspberry Pi OS Kernel 5.4 |
-| `bcm43455c0` | `7_45_234 (4ca95bbcy)` | Raspberry Pi B3+/B4/5 | Raspberry Pi OS |
-
----
-
-## Final Working Configuration
-
-After extensive testing, the following environment was successfully stabilized on the **Raspberry Pi 4**:
-
-- **Kernel Version:** 5.10 *(Note: Kernel 5.4 was tested but refused to boot the OS.)*
-- **Firmware Version:** Downgraded to `7.45.189` (compatible with modern network access and the Nexmon patch).
-- **Result:** `nexmon_csi` installed and functioned correctly, enabling the successful deployment of Setup 4.
+| Firmware Patch Version | Supported Hardware | OS / Target Kernel |
+|---|---|---|
+| `7_45_154` | Raspberry Pi B3+/B4 | Raspbian Kernel 4.9/14/19 |
+| `7_45_189` | Raspberry Pi B3+/B4 | Raspbian Kernel 4.14/19, 5.4 |
+| `7_45_206` | Raspberry Pi B3+/B4 | Raspberry Pi OS Kernel 5.4 |
+| `7_45_234 (4ca95bbcy)` | Raspberry Pi B3+/B4/5 | Raspberry Pi OS |
 
 ---
 
-## Key Takeaways
+## Final working configuration
 
-- Activating monitor mode via `nexmon_csi` always breaks standard Wi-Fi (`wlan0`) connectivity — plan for an out-of-band connection (Ethernet, or a fully standalone Pi) rather than relying on wireless SSH.
-- Laptop USB/Ethernet ports impose power-management limits that make them unreliable for sustained, resource-heavy sessions with a Pi.
-- The cleanest architecture decouples roles entirely: one device transmits, one captures, and neither depends on a laptop's network stack.
-- `apt update` is dangerous on a patched system — always hold `raspberrypi-kernel`, `raspberrypi-kernel-headers`, and `raspberrypi-bootloader` before updating anything else.
-- Kernel and firmware versions are tightly coupled to the specific Wi-Fi chip (`bcm43430a1` for Pi 3, `bcm43455c0` for Pi 4) — cross-referencing the Nexmon compatibility tables before flashing an image saves significant rework.
+After all of the above, this is what stabilized on the **Raspberry Pi 4**:
+
+- **Kernel:** 5.10 *(5.4 was tested but refused to boot the OS)*
+- **Firmware:** downgraded to `7.45.189` — compatible with both modern network access and the Nexmon patch
+- **Result:** `nexmon_csi` installed and ran correctly, enabling Setup 4 above
+
+---
+
+## Takeaways for next time
+
+- Don't rely on wireless SSH once you're about to patch firmware — plan for Ethernet or a fully standalone Pi from the start.
+- Laptop USB/Ethernet ports aren't reliable for sustained, resource-heavy sessions with a Pi; power management will get in the way eventually.
+- The cleanest setup decouples roles entirely: one device transmits, one captures, neither depends on a laptop.
+- Hold `raspberrypi-kernel`, `raspberrypi-kernel-headers`, and `raspberrypi-bootloader` *before* running `apt update` on any patched system.
+- Cross-check the Nexmon compatibility tables against your Pi's Wi-Fi chip before flashing an image — it saves a lot of rework.
