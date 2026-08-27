@@ -1,0 +1,102 @@
+<!-- Site-wide additions injected into <head> by the pages-themes/minimal layout. -->
+
+<!-- MathJax 3: render the equations on the CSI pages.
+     _config.yml sets kramdown math_engine:null, so kramdown emits
+     <div class="math"> / <span class="math"> containers holding raw TeX (no
+     delimiters). We wrap those in \[..\] / \(..\) before typesetting; single-$
+     inline math is passed straight through by kramdown and handled by the
+     $ delimiter. -->
+<script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']],
+      processEscapes: true
+    },
+    options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] },
+    startup: {
+      ready: function () {
+        window.MathJax.startup.defaultReady();
+        // math_engine:null  -> <div class="math"> / <span class="math">, raw TeX
+        document.querySelectorAll('div.math').forEach(function (e) {
+          e.textContent = '\\[' + e.textContent + '\\]';
+        });
+        document.querySelectorAll('span.math').forEach(function (e) {
+          e.textContent = '\\(' + e.textContent + '\\)';
+        });
+        // fallback: kramdown default -> <script type="math/tex">
+        document.querySelectorAll('script[type^="math/tex"]').forEach(function (s) {
+          var disp = s.type.indexOf('mode=display') > -1;
+          var span = document.createElement('span');
+          span.textContent = (disp ? '\\[' : '\\(') + s.textContent + (disp ? '\\]' : '\\)');
+          s.replaceWith(span);
+        });
+        window.MathJax.typesetPromise();
+      }
+    }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+
+<!-- Mermaid: render ```mermaid fenced blocks as diagrams -->
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+
+  // kramdown renders ```mermaid as <pre><code class="language-mermaid">…</code></pre>.
+  // Mermaid wants <pre class="mermaid">…</pre>, so rewrite the nodes first.
+  document.querySelectorAll('pre > code.language-mermaid').forEach(function (code) {
+    var pre = code.parentElement;
+    var div = document.createElement('pre');
+    div.className = 'mermaid';
+    div.textContent = code.textContent;
+    pre.replaceWith(div);
+  });
+
+  var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: 'loose',
+    theme: dark ? 'dark' : 'neutral',
+    flowchart: { curve: 'basis', useMaxWidth: false, htmlLabels: true }
+  });
+  await mermaid.run({ querySelector: 'pre.mermaid' });
+</script>
+
+<style>
+  /* Give the content column more room than the minimal theme default (620px) —
+     the diagrams and figures need it. Mirrors the theme's own >960px rule. */
+  @media screen and (min-width: 961px) {
+    .wrapper { width: 1080px; }
+    header { width: 270px; }
+    section { width: 760px; }
+  }
+
+  /* Standardised nav row at the top of every page */
+  .site-nav {
+    font-size: 14px;
+    line-height: 1.9;
+    margin: 0 0 2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #e8e8e8;
+  }
+  .site-nav a { white-space: nowrap; }
+
+  /* Figures + captions */
+  figure { margin: 1.5rem 0; text-align: center; }
+  figure img { max-width: 100%; height: auto; border: 1px solid #eee; border-radius: 4px; }
+  figcaption { font-size: 13px; color: #666; margin-top: 0.5rem; text-align: left; }
+
+  /* Mermaid diagrams: centre, give them room, no code-block chrome */
+  pre.mermaid {
+    background: none;
+    border: none;
+    text-align: center;
+    overflow-x: auto;
+    margin: 1.5rem 0;
+  }
+
+  /* Wide tables scroll instead of breaking the layout */
+  table { display: block; overflow-x: auto; }
+
+  img { max-width: 100%; }
+</style>

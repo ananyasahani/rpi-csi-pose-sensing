@@ -1,12 +1,40 @@
-title: WiFi CSI Human Pose Sensing
+title: WiFi CSI Human Sensing
 description: >-
-  WiFi Channel State Information (CSI) capture and human pose sensing on
-  Raspberry Pi 4, using nexmon_csi for firmware-level CSI extraction from
-  ambient WiFi traffic — explored as an alternative to camera-based pose
-  detection.
+  WiFi Channel State Information (CSI) based human presence and activity
+  detection on a Raspberry Pi, using nexmon_csi for firmware-level CSI
+  extraction — a privacy-preserving, non-visual alternative to camera-based
+  sensing.
 remote_theme: pages-themes/minimal
 plugins:
   - jekyll-remote-theme
+  - jekyll-seo-tag
 
 # GitHub metadata (used by some themes for the repo link / footer)
 repository: ananyasahani/rpi-csi-pose-sensing
+baseurl: "/rpi-csi-pose-sensing"
+url: "https://ananyasahani.github.io"
+show_downloads: false
+
+# Let MathJax 3 (loaded in _includes/head-custom.html) handle all math.
+# Without this, kramdown rewrites $$…$$ into <script type="math/tex"> tags that
+# MathJax 3 does not process.
+kramdown:
+  math_engine: null
+
+# Only the curated site pages + assets are built. Everything below stays in the
+# repo (and is viewable on GitHub) but is not turned into a published page.
+exclude:
+  - context/
+  - notebooks/
+  - plots/
+  - shell_scripts/
+  - .venv/
+  - .ipynb_checkpoints/
+  - CLAUDE.md
+  - readme.md
+  - visualize_csi.py
+  - download.py
+  - "*.py"
+  - Gemfile
+  - Gemfile.lock
+  - vendor/
